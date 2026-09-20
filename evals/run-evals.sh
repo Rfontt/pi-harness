@@ -20,7 +20,7 @@ new_project() {
 }
 
 pi_run() { (cd "$1" && "$PI" -p "$2" >/dev/null 2>&1); }
-start_wf() { pi_run "$1" "Chame a ferramenta workflow com action=start e slug=eval"; }
+start_wf() { pi_run "$1" "Call the workflow tool with action=start and slug=eval"; }
 
 has_phase() { grep -q "\"phase\": \"$2\"" "$1/.pi/workflow.json" 2>/dev/null; }
 
@@ -48,29 +48,29 @@ Given a state, When an action, Then an outcome.
 
 case_spec_write_allowed() {
   local d; d=$(new_project); start_wf "$d"
-  pi_run "$d" "Use a ferramenta write para criar specs/eval/spec.md com um spec basico"
-  [ -f "$d/specs/eval/spec.md" ] && ok "spec-write-allowed (write ao artefato da fase)" || bad "spec-write-allowed"
+  pi_run "$d" "Use the write tool to create specs/eval/spec.md with a basic spec"
+  [ -f "$d/specs/eval/spec.md" ] && ok "spec-write-allowed (write to the phase artifact)" || bad "spec-write-allowed"
   [ -n "${CLEANUP:-}" ] && rm -rf "$d"
 }
 
 case_source_write_blocked() {
   local d; d=$(new_project); start_wf "$d"
-  pi_run "$d" "Use a ferramenta write para criar src/Main.kt com conteudo fun main(){}"
-  [ ! -f "$d/src/Main.kt" ] && ok "source-write-blocked-in-spec (source read-only)" || bad "source-write-blocked-in-spec (arquivo foi criado!)"
+  pi_run "$d" "Use the write tool to create src/Main.kt with content fun main(){}"
+  [ ! -f "$d/src/Main.kt" ] && ok "source-write-blocked-in-spec (source read-only)" || bad "source-write-blocked-in-spec (file was created!)"
   [ -n "${CLEANUP:-}" ] && rm -rf "$d"
 }
 
 case_plan_write_blocked_during_spec() {
   local d; d=$(new_project); start_wf "$d"
-  pi_run "$d" "Use a ferramenta write para criar specs/eval/plan.md com conteudo teste"
-  [ ! -f "$d/specs/eval/plan.md" ] && ok "plan-write-blocked-during-spec (um artefato por vez)" || bad "plan-write-blocked-during-spec"
+  pi_run "$d" "Use the write tool to create specs/eval/plan.md with content test"
+  [ ! -f "$d/specs/eval/plan.md" ] && ok "plan-write-blocked-during-spec (one artifact at a time)" || bad "plan-write-blocked-during-spec"
   [ -n "${CLEANUP:-}" ] && rm -rf "$d"
 }
 
 case_advance_blocks_invalid_spec() {
   local d; d=$(new_project); start_wf "$d"
-  mkdir -p "$d/specs/eval"; echo "# spec incompleta" > "$d/specs/eval/spec.md"
-  pi_run "$d" "Chame a ferramenta workflow com action=advance"
+  mkdir -p "$d/specs/eval"; echo "# incomplete spec" > "$d/specs/eval/spec.md"
+  pi_run "$d" "Call the workflow tool with action=advance"
   has_phase "$d" "spec" && ok "advance-blocks-on-invalid-spec" || bad "advance-blocks-on-invalid-spec"
   [ -n "${CLEANUP:-}" ] && rm -rf "$d"
 }
@@ -78,7 +78,7 @@ case_advance_blocks_invalid_spec() {
 case_advance_sets_approval_valid_spec() {
   local d; d=$(new_project); start_wf "$d"
   mkdir -p "$d/specs/eval"; printf '%s\n' "$VALID_SPEC" > "$d/specs/eval/spec.md"
-  pi_run "$d" "Chame a ferramenta workflow com action=advance"
+  pi_run "$d" "Call the workflow tool with action=advance"
   grep -q '"pendingApproval": "plan"' "$d/.pi/workflow.json" && ok "advance-sets-approval-on-valid-spec" || bad "advance-sets-approval-on-valid-spec"
   [ -n "${CLEANUP:-}" ] && rm -rf "$d"
 }
@@ -87,7 +87,7 @@ case_verify_blocks_failing_command() {
   local d; d=$(new_project); mkdir -p "$d/.pi"
   printf '{ "slug": "eval", "phase": "implement", "pendingApproval": null, "updated": "" }\n' > "$d/.pi/workflow.json"
   printf '{ "verify": { "commands": ["exit 1"] }, "rules": [] }\n' > "$d/.pi/gates.json"
-  pi_run "$d" "Chame a ferramenta workflow com action=advance"
+  pi_run "$d" "Call the workflow tool with action=advance"
   has_phase "$d" "implement" && ok "verify-blocks-on-failing-command" || bad "verify-blocks-on-failing-command"
   [ -n "${CLEANUP:-}" ] && rm -rf "$d"
 }
@@ -96,7 +96,7 @@ case_verify_passes_ok_command() {
   local d; d=$(new_project); mkdir -p "$d/.pi"
   printf '{ "slug": "eval", "phase": "implement", "pendingApproval": null, "updated": "" }\n' > "$d/.pi/workflow.json"
   printf '{ "verify": { "commands": ["true"] }, "rules": [] }\n' > "$d/.pi/gates.json"
-  pi_run "$d" "Chame a ferramenta workflow com action=advance"
+  pi_run "$d" "Call the workflow tool with action=advance"
   has_phase "$d" "review" && ok "verify-passes-on-ok-command" || bad "verify-passes-on-ok-command"
   [ -n "${CLEANUP:-}" ] && rm -rf "$d"
 }
@@ -106,7 +106,7 @@ case_rule_blocks_violation() {
   printf '{ "slug": "eval", "phase": "implement", "pendingApproval": null, "updated": "" }\n' > "$d/.pi/workflow.json"
   printf '{ "verify": { "commands": [] }, "rules": [ { "id": "no-copy", "mode": "forbidden", "command": "grep -Frn '\''.copy('\'' src/ 2>/dev/null" } ] }\n' > "$d/.pi/gates.json"
   echo 'val x = obj.copy()' > "$d/src/X.kt"
-  pi_run "$d" "Chame a ferramenta workflow com action=advance"
+  pi_run "$d" "Call the workflow tool with action=advance"
   has_phase "$d" "implement" && ok "rule-blocks-on-violation" || bad "rule-blocks-on-violation"
   [ -n "${CLEANUP:-}" ] && rm -rf "$d"
 }
