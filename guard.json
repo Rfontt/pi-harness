@@ -1,0 +1,9 @@
+{
+  "blockedTools": [],
+  "denyBash": [],
+  "allowBash": [],
+  "protectPaths": [],
+  "boundary": "project",
+  "allowPaths": [],
+  "maxWriteBytes": 20000
+}

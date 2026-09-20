@@ -136,41 +136,45 @@ Scale/Scope:      [e.g. 10k users, 50 screens]
 
 ---
 
-## 5. tasks.md — EXECUTE (ordered, verifiable, parallel-aware)
+## 5. tasks.md — EXECUTE (diff-ready, for the implement agent)
 
-Format: `[ID] [P?] [Story] Description` — `[P]` = parallel-safe, `[Story]` = which user story (US1/US2).
+tasks.md is written for the AGENT that implements — make it mechanical, not interpretive. Each task is ONE surgical edit, self-contained: exact file, exact OLD/NEW snippets, the exact test, and an objective "done" criterion. The implement agent applies it with `edit(oldText, newText)` and never re-reads spec.md/plan.md.
 
-```markdown
+````markdown
 # Tasks: [feature]
 
-## Phase 1 — Setup (no dependencies)
-- [ ] T001 Initialize [language] project with [framework] deps
-- [ ] T002 [P] Configure linting and formatting
+## T001 — [short title]
+File: src/domain/PaymentService.kt
+Test: src/test/kotlin/domain/PaymentServiceTest.kt :: shouldRefundIdempotently
+Done: `./gradlew test --tests PaymentServiceTest` green; no other file touched
 
-## Phase 2 — Foundational (BLOCKS every user story)
-- [ ] T003 Set up database schema + migrations
-- [ ] T004 [P] Auth/authorization framework
-- [ ] T005 [P] Error handling + logging
-- [ ] T006 Environment configuration
-Checkpoint: foundation ready — stories can now proceed.
-
-## Phase 3 — US1 (P1 · MVP)
-### Tests first — write, confirm they FAIL, then implement
-- [ ] T007 [P] [US1] Contract test in tests/contract/test_x.py
-- [ ] T008 [P] [US1] Integration test in tests/integration/test_x.py
-### Implementation
-- [ ] T009 [P] [US1] [Entity] model in src/models/entity.py
-- [ ] T010 [US1] [Service] in src/services/service.py (depends on T009)
-- [ ] T011 [US1] Endpoint in src/api/...
-
-## Phase 4 — US2 (P2)
-[same pattern]
-
-## Phase N — Polish (cross-cutting)
-- [ ] Docs, cleanup, perf, security hardening, run quickstart validation
+OLD:
+```kotlin
+    fun refund(amount: Money) {
+        balance += amount
+        transactions.add(Refund(amount))
+    }
 ```
 
-**Ordering rules:** Setup → Foundational → stories in priority order. Within a story: tests → models → services → endpoints. Commit after each task. Stop at any checkpoint to validate a story independently.
+NEW:
+```kotlin
+    fun refund(amount: Money, requestId: String) {
+        if (transactions.any { it.requestId == requestId }) return
+        balance += amount
+        transactions.add(Refund(amount, requestId))
+    }
+```
+
+## T002 — [short title]
+File: ...
+````
+
+**Rules:**
+- OLD must be copied VERBATIM from the current file (never paraphrased). NEW is the exact replacement.
+- One task = one file = one focused change. Split anything bigger into more tasks.
+- Every task names the exact test that validates it (file + test name) and an objective Done.
+- Order tasks by dependency; implement runs them strictly in order, verifying each Done.
+- If a task needs a file the plan didn't mention, STOP and go back to plan — never improvise.
 
 ---
 
@@ -188,14 +192,30 @@ Version: [x.y.z] | Ratified: [date] | Last Amended: [date]
 
 ---
 
-## How to run it (with approval gates)
+## How to run it (with the workflow gate)
+
+The `workflow` tool + `/approve` gate the spec → plan → tasks → implement → review chain in CODE: spec, plan and tasks are read-only over source until `implement`; the `implement → review` transition is gated by VERIFY (gates.json commands + rules) — the model cannot declare "tests passed".
+
 1. **Explore** — read `.ai/`, relevant code, and tests before writing anything.
-2. **Validate** (optional, product ideas) — PR/FAQ first.
-3. **Specify** — write `spec.md` (WHAT). Mark every ambiguity `[NEEDS CLARIFICATION]`. Never guess.
-4. **GATE** — user approves `spec.md`.
-5. **Plan** — write `plan.md` (HOW) with goals/non-goals, alternatives, and the constitution check.
-6. **Task** — derive `tasks.md`; order by dependency, mark `[P]`.
-7. **GATE** — user approves plan + tasks, then implement one task at a time, verifying each.
+2. **Start** — call the `workflow` tool with `action=start` and a slug. This opens phase=spec.
+3. **Specify** — write `spec.md` (WHAT). Mark every ambiguity `[NEEDS CLARIFICATION]`. Never guess. Run `workflow action=check` until valid, then the human types `/approve`.
+4. **Plan** — write `plan.md` (HOW) with goals/non-goals, alternatives, and the constitution check. Read the actual files and capture VERBATIM snippets for the upcoming tasks. `/approve` when done.
+5. **Task** — derive `tasks.md` in the diff-ready format (File + OLD/NEW verbatim + Test + Done). `/approve` when done.
+6. **Implement** — only now can source be edited. Apply each task with `edit(oldText, newText)`, verifying each Done. Never re-read spec/plan.
+7. **Verify** — `workflow action=verify` runs `gates.json` verify commands (e.g. `./gradlew test`) and static rules; the advance to review is BLOCKED until green. Fix failures, re-verify.
+8. **Review** — self-review (read-only), commit, then `workflow action=advance` to close.
+
+### gates.json (verification config — per-project `.pi/gates.json` overrides global `~/.pi/agent/gates.json`)
+```json
+{
+  "verify": { "commands": ["./gradlew test", "./gradlew ktlintCheck"] },
+  "rules": [
+    { "id": "no-copy-in-tests", "mode": "forbidden", "command": "grep -rn '\\.copy(' --include='*Test.kt' src/ test/ 2>/dev/null" },
+    { "id": "no-todo", "mode": "forbidden", "command": "grep -rn 'TODO' src/ 2>/dev/null" }
+  ]
+}
+```
+A `verify.commands` entry must exit 0. A `rule` passes when a `forbidden` command finds nothing, or a `required` command finds something.
 
 ## Non-negotiable moves
 - WHAT before HOW — spec never mentions a stack or code structure.
